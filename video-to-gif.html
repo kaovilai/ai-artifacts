@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video to GIF Converter</title>
+    <meta name="description" content="Convert videos to GIF locally in your browser">
+    <meta name="theme-color" content="#6366f1">
+    
+    <!-- PWA Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="apple-mobile-web-app-title" content="GIF Converter">
+    
+    <!-- Inline manifest for simplicity -->
+    <link rel="manifest" href='data:application/json,{"name":"Video to GIF Converter","short_name":"GIF Converter","start_url":".","display":"standalone","background_color":"#111111","theme_color":"#6366f1","description":"Convert videos to GIF locally in your browser","icons":[{"src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==","sizes":"192x192","type":"image/png"}]}'>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #0a0a0a;
+            color: #e0e0e0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem;
+            width: 100%;
+            flex: 1;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 3rem;
+            position: relative;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5rem;
+            animation: glow 3s ease-in-out infinite alternate;
+        }
+
+        @keyframes glow {
+            from { filter: brightness(1); }
+            to { filter: brightness(1.2); }
+        }
+
+        .subtitle {
+            color: #888;
+            font-size: 1.1rem;
+        }
+
+        .upload-area {
+            background: #1a1a1a;
+            border: 2px dashed #444;
+            border-radius: 1rem;
+            padding: 3rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .upload-area:hover {
+            border-color: #6366f1;
+            background: #1f1f1f;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(99, 102, 241, 0.2);
+        }
+
+        .upload-area.dragover {
+            border-color: #667eea;
+            background: rgba(99, 102, 241, 0.1);
+        }
+
+        .upload-icon {
+            width: 64px;
+            height: 64px;
+            margin: 0 auto 1rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.05); opacity: 0.8; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .preview-section {
+            display: none;
+            margin-top: 2rem;
+            background: #1a1a1a;
+            border-radius: 1rem;
+            padding: 2rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        .preview-section.active {
+            display: block;
+            animation: slideIn 0.5s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        video {
+            width: 100%;
+            max-width: 500px;
+            border-radius: 0.5rem;
+            margin: 0 auto;
+            display: block;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.5);
+        }
+
+        .controls {
+            margin-top: 2rem;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .control-group {
+            background: #222;
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            border: 1px solid #333;
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #999;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            background: #333;
+            border-radius: 3px;
+            outline: none;
+            -webkit-appearance: none;
+            appearance: none;
+            cursor: pointer;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            background: #6366f1;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+            box-shadow: 0 2px 12px rgba(99, 102, 241, 0.5);
+        }
+
+        .value-display {
+            text-align: center;
+            margin-top: 0.5rem;
+            font-weight: 600;
+            color: #6366f1;
+        }
+
+        .convert-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 1rem 3rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-radius: 2rem;
+            cursor: pointer;
+            margin: 2rem auto;
+            display: block;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .convert-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(99, 102, 241, 0.4);
+        }
+
+        .convert-btn:active {
+            transform: translateY(0);
+        }
+
+        .convert-btn:disabled {
+            background: #444;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .progress-bar {
+            display: none;
+            margin: 2rem 0;
+            background: #222;
+            border-radius: 1rem;
+            padding: 0.5rem;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .progress-bar.active {
+            display: block;
+        }
+
+        .progress-fill {
+            height: 8px;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            border-radius: 0.5rem;
+            width: 0%;
+            transition: width 0.3s ease;
+            box-shadow: 0 2px 8px rgba(99, 102, 241, 0.4);
+        }
+
+        .progress-text {
+            text-align: center;
+            margin-top: 0.5rem;
+            font-size: 0.9rem;
+            color: #999;
+        }
+
+        .result-section {
+            display: none;
+            margin-top: 2rem;
+            text-align: center;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .result-section.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .result-gif {
+            max-width: 100%;
+            border-radius: 0.5rem;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            margin-bottom: 1rem;
+        }
+
+        .download-btn {
+            background: #10b981;
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+            margin: 0.5rem;
+        }
+
+        .download-btn:hover {
+            background: #059669;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(16, 185, 129, 0.3);
+        }
+
+        .reset-btn {
+            background: #ef4444;
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 0.5rem;
+        }
+
+        .reset-btn:hover {
+            background: #dc2626;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(239, 68, 68, 0.3);
+        }
+
+        .install-prompt {
+            display: none;
+            position: fixed;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #1f2937;
+            padding: 1rem 2rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            z-index: 1000;
+            animation: slideUp 0.5s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translate(-50%, 100%);
+            }
+            to {
+                opacity: 1;
+                transform: translate(-50%, 0);
+            }
+        }
+
+        .install-prompt button {
+            background: #6366f1;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 0.25rem;
+            cursor: pointer;
+            margin-left: 1rem;
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .controls {
+                grid-template-columns: 1fr;
+            }
+            
+            .container {
+                padding: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Video to GIF Converter</h1>
+            <p class="subtitle">Convert your videos to GIF locally in the browser</p>
+        </header>
+
+        <div class="upload-area" id="uploadArea">
+            <div class="upload-icon">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="17 8 12 3 7 8"></polyline>
+                    <line x1="12" y1="3" x2="12" y2="15"></line>
+                </svg>
+            </div>
+            <p style="font-size: 1.2rem; margin-bottom: 0.5rem;">Drop your video here or click to upload</p>
+            <p style="color: #666; font-size: 0.9rem;">Supports MP4, WebM, MOV, AVI</p>
+            <input type="file" id="videoInput" accept="video/*">
+        </div>
+
+        <div class="preview-section" id="previewSection">
+            <video id="videoPreview" controls></video>
+            
+            <div class="controls">
+                <div class="control-group">
+                    <label for="startTime">Start Time (seconds)</label>
+                    <input type="range" id="startTime" min="0" max="10" step="0.1" value="0">
+                    <div class="value-display" id="startTimeValue">0s</div>
+                </div>
+                
+                <div class="control-group">
+                    <label for="duration">Duration (seconds)</label>
+                    <input type="range" id="duration" min="0.5" max="10" step="0.5" value="3">
+                    <div class="value-display" id="durationValue">3s</div>
+                </div>
+                
+                <div class="control-group">
+                    <label for="fps">Frames Per Second</label>
+                    <input type="range" id="fps" min="5" max="30" step="5" value="10">
+                    <div class="value-display" id="fpsValue">10 FPS</div>
+                </div>
+                
+                <div class="control-group">
+                    <label for="quality">Quality</label>
+                    <input type="range" id="quality" min="0.1" max="1" step="0.1" value="0.7">
+                    <div class="value-display" id="qualityValue">70%</div>
+                </div>
+            </div>
+
+            <button class="convert-btn" id="convertBtn">Convert to GIF</button>
+            
+            <div class="progress-bar" id="progressBar">
+                <div class="progress-fill" id="progressFill"></div>
+                <div class="progress-text" id="progressText">Processing...</div>
+            </div>
+        </div>
+
+        <div class="result-section" id="resultSection">
+            <img id="resultGif" class="result-gif" alt="Generated GIF">
+            <div>
+                <a id="downloadBtn" class="download-btn" download="converted.gif">Download GIF</a>
+                <button class="reset-btn" id="resetBtn">Convert Another</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="install-prompt" id="installPrompt">
+        <span>Install this app for offline use!</span>
+        <button id="installBtn">Install</button>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js"></script>
+    <script>
+        // Initialize variables
+        let videoFile = null;
+        let deferredPrompt = null;
+
+        // DOM elements
+        const uploadArea = document.getElementById('uploadArea');
+        const videoInput = document.getElementById('videoInput');
+        const previewSection = document.getElementById('previewSection');
+        const videoPreview = document.getElementById('videoPreview');
+        const convertBtn = document.getElementById('convertBtn');
+        const progressBar = document.getElementById('progressBar');
+        const progressFill = document.getElementById('progressFill');
+        const progressText = document.getElementById('progressText');
+        const resultSection = document.getElementById('resultSection');
+        const resultGif = document.getElementById('resultGif');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const installPrompt = document.getElementById('installPrompt');
+        const installBtn = document.getElementById('installBtn');
+
+        // Range inputs
+        const startTimeInput = document.getElementById('startTime');
+        const durationInput = document.getElementById('duration');
+        const fpsInput = document.getElementById('fps');
+        const qualityInput = document.getElementById('quality');
+
+        // Value displays
+        const startTimeValue = document.getElementById('startTimeValue');
+        const durationValue = document.getElementById('durationValue');
+        const fpsValue = document.getElementById('fpsValue');
+        const qualityValue = document.getElementById('qualityValue');
+
+        // Update value displays
+        startTimeInput.addEventListener('input', () => {
+            startTimeValue.textContent = `${startTimeInput.value}s`;
+        });
+
+        durationInput.addEventListener('input', () => {
+            durationValue.textContent = `${durationInput.value}s`;
+        });
+
+        fpsInput.addEventListener('input', () => {
+            fpsValue.textContent = `${fpsInput.value} FPS`;
+        });
+
+        qualityInput.addEventListener('input', () => {
+            qualityValue.textContent = `${Math.round(qualityInput.value * 100)}%`;
+        });
+
+        // File upload handling
+        uploadArea.addEventListener('click', () => {
+            videoInput.click();
+        });
+
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0 && files[0].type.startsWith('video/')) {
+                handleVideoFile(files[0]);
+            }
+        });
+
+        videoInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleVideoFile(e.target.files[0]);
+            }
+        });
+
+        function handleVideoFile(file) {
+            videoFile = file;
+            const url = URL.createObjectURL(file);
+            videoPreview.src = url;
+            previewSection.classList.add('active');
+            
+            videoPreview.addEventListener('loadedmetadata', () => {
+                const duration = videoPreview.duration;
+                startTimeInput.max = Math.max(0, duration - 0.5);
+                durationInput.max = Math.min(10, duration);
+                startTimeInput.value = 0;
+                durationInput.value = Math.min(3, duration);
+                startTimeValue.textContent = '0s';
+                durationValue.textContent = `${Math.min(3, duration)}s`;
+            });
+        }
+
+        // Convert to GIF
+        convertBtn.addEventListener('click', async () => {
+            if (!videoFile) return;
+
+            convertBtn.disabled = true;
+            progressBar.classList.add('active');
+            progressFill.style.width = '0%';
+            progressText.textContent = 'Preparing video...';
+
+            const startTime = parseFloat(startTimeInput.value);
+            const duration = parseFloat(durationInput.value);
+            const fps = parseInt(fpsInput.value);
+            const quality = parseFloat(qualityInput.value);
+
+            try {
+                const gif = await createGif(videoPreview, startTime, duration, fps, quality);
+                
+                resultGif.src = gif;
+                downloadBtn.href = gif;
+                resultSection.classList.add('active');
+                progressBar.classList.remove('active');
+                convertBtn.disabled = false;
+            } catch (error) {
+                console.error('Error creating GIF:', error);
+                alert('Error creating GIF. Please try again.');
+                convertBtn.disabled = false;
+                progressBar.classList.remove('active');
+            }
+        });
+
+        function createGif(video, startTime, duration, fps, quality) {
+            return new Promise((resolve, reject) => {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                
+                // Calculate dimensions (max 480px width for reasonable file size)
+                const maxWidth = 480;
+                const scale = Math.min(1, maxWidth / video.videoWidth);
+                canvas.width = video.videoWidth * scale;
+                canvas.height = video.videoHeight * scale;
+
+                const gif = new GIF({
+                    workers: 2,
+                    quality: Math.round((1 - quality) * 20), // GIF.js uses inverse quality scale
+                    width: canvas.width,
+                    height: canvas.height,
+                    workerScript: 'https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js'
+                });
+
+                gif.on('progress', (p) => {
+                    progressFill.style.width = `${Math.round(p * 100)}%`;
+                    progressText.textContent = `Processing... ${Math.round(p * 100)}%`;
+                });
+
+                gif.on('finished', (blob) => {
+                    const url = URL.createObjectURL(blob);
+                    resolve(url);
+                });
+
+                // Capture frames
+                const frameDelay = 1000 / fps;
+                const totalFrames = Math.floor(duration * fps);
+                let currentFrame = 0;
+
+                video.currentTime = startTime;
+
+                video.addEventListener('seeked', function captureFrame() {
+                    if (currentFrame < totalFrames) {
+                        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                        gif.addFrame(ctx, { delay: frameDelay });
+                        
+                        currentFrame++;
+                        const nextTime = startTime + (currentFrame / fps);
+                        
+                        if (nextTime < startTime + duration && nextTime < video.duration) {
+                            video.currentTime = nextTime;
+                        } else {
+                            video.removeEventListener('seeked', captureFrame);
+                            progressText.textContent = 'Rendering GIF...';
+                            gif.render();
+                        }
+                    }
+                });
+            });
+        }
+
+        // Reset button
+        resetBtn.addEventListener('click', () => {
+            videoFile = null;
+            videoPreview.src = '';
+            previewSection.classList.remove('active');
+            resultSection.classList.remove('active');
+            videoInput.value = '';
+        });
+
+        // PWA Installation
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            installPrompt.style.display = 'block';
+        });
+
+        installBtn.addEventListener('click', async () => {
+            if (!deferredPrompt) return;
+            
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            
+            if (outcome === 'accepted') {
+                console.log('User accepted the install prompt');
+            }
+            
+            deferredPrompt = null;
+            installPrompt.style.display = 'none';
+        });
+
+        // Register Service Worker
+        if ('serviceWorker' in navigator) {
+            // Create service worker code
+            const swCode = `
+                const CACHE_NAME = 'video-to-gif-v1';
+                const urlsToCache = [
+                    '/',
+                    'https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js',
+                    'https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js'
+                ];
+
+                self.addEventListener('install', event => {
+                    event.waitUntil(
+                        caches.open(CACHE_NAME)
+                            .then(cache => cache.addAll(urlsToCache))
+                    );
+                });
+
+                self.addEventListener('fetch', event => {
+                    event.respondWith(
+                        caches.match(event.request)
+                            .then(response => response || fetch(event.request))
+                    );
+                });
+            `;
+
+            // Register service worker from blob
+            const blob = new Blob([swCode], { type: 'application/javascript' });
+            const swUrl = URL.createObjectURL(blob);
+            
+            navigator.serviceWorker.register(swUrl).then(registration => {
+                console.log('ServiceWorker registration successful');
+            }).catch(err => {
+                console.log('ServiceWorker registration failed: ', err);
+            });
+        }
+    </script>
+</body>
+</html>
